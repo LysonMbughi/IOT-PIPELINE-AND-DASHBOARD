@@ -1,0 +1,27 @@
+# Sample sensor configuration
+# Loaded by the sensor simulator (client/) at startup.
+
+server:
+  host: 127.0.0.1
+  port: 9000  # TCP ingest port for the telemetry server
+
+sensors:
+  - id: greenhouse-a-temp
+    type: TEMPERATURE
+    interval_seconds: 5
+    location: "Greenhouse A, Temperature Sensor"
+
+  - id: greenhouse-a-humidity
+    type: HUMIDITY
+    interval_seconds: 7
+    location: "Greenhouse A, Humidity Sensor"
+
+  - id: greenhouse-b-soil
+    type: SOIL_MOISTURE
+    interval_seconds: 10
+    location: "Greenhouse B, Soil Moisture Sensor"
+
+  - id: greenhouse-c-light
+    type: LIGHT
+    interval_seconds: 3
+    location: "Greenhouse C, Light Sensor"

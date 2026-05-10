@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenWatch — Greenhouse Telemetry</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#0a0e0a;--bg-surface:#111611;--bg-card:#161e16;--bg-elev:#1c261c;--border:rgba(255,255,255,0.07);--border-a:rgba(74,222,128,0.3);--tp:#f0f5f0;--ts:#7a9a7a;--tm:#4a634a;--ac:#4ade80;--acd:rgba(74,222,128,0.12);--acg:rgba(74,222,128,0.06);--wr:#fbbf24;--wrd:rgba(251,191,36,0.12);--dg:#f87171;--dgd:rgba(248,113,113,0.12);--bl:#60a5fa;--bld:rgba(96,165,250,0.12);--pu:#a78bfa;--pud:rgba(167,139,250,0.12);--font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;--r:10px;--rl:16px;}
+*{margin:0;padding:0;box-sizing:border-box;}html{font-size:15px;}
+body{font-family:var(--font);background:var(--bg);color:var(--tp);min-height:100vh;line-height:1.5;}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+.sidebar{background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sbl{padding:24px 20px 20px;border-bottom:1px solid var(--border);}
+.logo{display:flex;align-items:center;gap:10px;}
+.li{width:32px;height:32px;background:var(--acd);border:1px solid var(--border-a);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.li svg{width:18px;height:18px;color:var(--ac);}
+.lt{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.ls{font-size:11px;color:var(--tm);}
+.ss{padding:16px 12px 8px;}
+.sl{font-size:10px;font-weight:600;letter-spacing:0.08em;color:var(--tm);text-transform:uppercase;padding:0 8px;margin-bottom:6px;}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);font-size:13.5px;color:var(--ts);cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:background .15s,color .15s;}
+.ni:hover{background:var(--bg-elev);color:var(--tp);}
+.ni.active{background:var(--acd);color:var(--ac);border:1px solid var(--border-a);}
+.ni svg{width:16px;height:16px;flex-shrink:0;}
+.sf{margin-top:auto;padding:16px 12px;border-top:1px solid var(--border);}
+.cb{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);background:var(--bg-elev);border:1px solid var(--border);font-size:12px;}
+.cd{width:8px;height:8px;border-radius:50%;background:var(--dg);flex-shrink:0;transition:background .3s;}
+.cd.live{background:var(--ac);box-shadow:0 0 8px rgba(74,222,128,.6);animation:pdot 2s infinite;}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.5}}
+.cl{color:var(--ts);}
+.cs{color:var(--tp);font-weight:500;}
+.main{display:flex;flex-direction:column;}
+.topbar{padding:18px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-surface);position:sticky;top:0;z-index:10;}
+.tbl{display:flex;flex-direction:column;gap:2px;}
+.pt{font-size:18px;font-weight:600;letter-spacing:-.02em;}
+.ps{font-size:12px;color:var(--tm);}
+.tbr{display:flex;align-items:center;gap:10px;}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid transparent;}
+.chip-ok{background:var(--acd);color:var(--ac);border-color:var(--border-a);}
+.chip-muted{background:var(--bg-elev);color:var(--ts);border-color:var(--border);}
+.btnr{padding:6px 14px;border-radius:var(--r);background:var(--bg-elev);color:var(--ts);border:1px solid var(--border);font-size:13px;font-family:var(--font);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.btnr:hover{color:var(--tp);border-color:rgba(255,255,255,.15);}
+.content{padding:24px 28px;flex:1;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.kc{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;position:relative;overflow:hidden;transition:border-color .3s;}
+.kc.flash{border-color:rgba(74,222,128,.4);}
+.kh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.ki{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.ki svg{width:18px;height:18px;}
+.ki.t{background:var(--dgd);color:var(--dg);}
+.ki.h{background:var(--bld);color:var(--bl);}
+.ki.s{background:var(--wrd);color:var(--wr);}
+.ki.l{background:var(--pud);color:var(--pu);}
+.kb{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;}
+.klive{background:var(--acd);color:var(--ac);border:1px solid var(--border-a);}
+.kidle{background:var(--bg-elev);color:var(--tm);}
+.kv{font-size:32px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:4px;}
+.ku{font-size:15px;font-weight:400;color:var(--ts);margin-left:2px;}
+.km{font-size:11.5px;color:var(--ts);}
+.kid{font-family:var(--mono);font-size:11px;color:var(--tm);margin-top:2px;}
+.ksp{height:36px;margin-top:12px;}
+.gm{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:24px;}
+.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.ph{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.ptt{font-size:13.5px;font-weight:600;}
+.pts{font-size:12px;color:var(--tm);margin-top:1px;}
+.tabs{display:flex;gap:2px;background:var(--bg-elev);border-radius:8px;padding:3px;}
+.tb{padding:4px 12px;border-radius:6px;font-size:12px;background:none;border:none;color:var(--tm);font-family:var(--font);cursor:pointer;transition:all .15s;}
+.tb.active{background:var(--bg-card);color:var(--tp);}
+.pb{padding:20px;}
+.cw{position:relative;height:240px;}
+.fi{padding:0;max-height:326px;overflow-y:auto;}
+.fi::-webkit-scrollbar{width:4px;}.fi::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.fitem{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:start;padding:10px 16px;border-bottom:1px solid var(--border);transition:background .2s;}
+.fitem:last-child{border-bottom:none;}
+.fitem.nw{background:var(--acg);}
+.fd{width:8px;height:8px;border-radius:50%;margin-top:4px;}
+.fd.t{background:var(--dg);}
+.fd.humidity{background:var(--bl);}
+.fd.soil{background:var(--wr);}
+.fd.l{background:var(--pu);}
+.fn{font-size:12px;font-weight:500;font-family:var(--mono);}
+.fty{font-size:11px;color:var(--tm);margin-top:1px;}
+.fv{font-size:13px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+.ft{font-size:10px;color:var(--tm);text-align:right;margin-top:2px;}
+.ss2{margin-bottom:24px;}
+.tw{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:11px 16px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--tm);text-transform:uppercase;background:var(--bg-surface);border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--bg-elev);}
+tbody td{padding:12px 16px;font-size:13px;}
+.tid{font-family:var(--mono);font-size:12px;color:var(--ac);}
+.tty{font-size:12px;font-weight:500;padding:3px 9px;border-radius:6px;display:inline-block;}
+.tT{background:var(--dgd);color:var(--dg);}
+.tH{background:var(--bld);color:var(--bl);}
+.tS{background:var(--wrd);color:var(--wr);}
+.tL{background:var(--pud);color:var(--pu);}
+.sp{display:inline-flex;align-items:center;gap:5px;font-size:12px;}
+.sd{width:6px;height:6px;border-radius:50%;}
+.slv .sd{background:var(--ac);}
+.slv{color:var(--ac);}
+.sil .sd{background:var(--tm);}
+.sil{color:var(--tm);}
+.br{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.qf{display:flex;flex-direction:column;gap:10px;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:11.5px;color:var(--tm);font-weight:500;}
+.fg select,.fg input{background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--tp);font-family:var(--font);outline:none;transition:border-color .15s;}
+.fg select:focus,.fg input:focus{border-color:rgba(74,222,128,.4);}
+.fg select option{background:var(--bg-card);}
+.bq{padding:9px 18px;border-radius:8px;background:var(--acd);color:var(--ac);border:1px solid var(--border-a);font-size:13px;font-family:var(--font);font-weight:500;cursor:pointer;transition:all .15s;align-self:flex-end;}
+.bq:hover{background:rgba(74,222,128,.2);}
+.qr{margin-top:8px;min-height:60px;}
+.es{color:var(--tm);font-size:13px;text-align:center;padding:20px 0;}
+.al{max-height:220px;overflow-y:auto;}
+.al::-webkit-scrollbar{width:4px;}.al::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.ait{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:start;}
+.ait:last-child{border-bottom:none;}
+.aico{font-size:14px;margin-top:1px;flex-shrink:0;}
+.amsg{font-size:12.5px;}
+.atm{font-size:11px;color:var(--tm);margin-top:2px;}
+.ahigh .amsg{color:var(--dg);}
+.awarn .amsg{color:var(--wr);}
+.aok .amsg{color:var(--ac);}
+.footer{padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--tm);background:var(--bg-surface);}
+.fr2{display:flex;gap:16px;}
+.sr{display:flex;gap:24px;padding-top:14px;border-top:1px solid var(--border);margin-top:4px;}
+.si{display:flex;flex-direction:column;gap:2px;}
+.sla{font-size:11px;color:var(--tm);}
+.sv{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;}
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;border:1px solid;animation:si 0.2s ease;}
+.tok{background:var(--acd);color:var(--ac);border-color:var(--border-a);}
+.terr{background:var(--dgd);color:var(--dg);border-color:rgba(248,113,113,.3);}
+@keyframes si{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@media(max-width:1100px){.layout{grid-template-columns:1fr;}.sidebar{display:none;}.kpis{grid-template-columns:repeat(2,1fr);}.gm{grid-template-columns:1fr;}.br{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar" role="navigation" aria-label="Main navigation">
+  <div class="sbl">
+    <div class="logo">
+      <div class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a9 9 0 0 1 9 9c0 4.97-9 13-9 13S3 15.97 3 11a9 9 0 0 1 9-9z"/><circle cx="12" cy="11" r="3"/></svg></div>
+      <div><div class="lt">GreenWatch</div><div class="ls">Telemetry v1.0</div></div>
+    </div>
+  </div>
+  <div class="ss">
+    <div class="sl">Monitor</div>
+    <button class="ni active" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Dashboard</button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>History</button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>Analytics</button>
+  </div>
+  <div class="ss">
+    <div class="sl">Network</div>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>Sensors</button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Alerts</button>
+    <button class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>API</button>
+  </div>
+  <div class="sf">
+    <div class="cb">
+      <div class="cd" id="sdot"></div>
+      <div><div class="cl" style="font-size:10px;">WebSocket</div><div class="cs" id="sstatus">Connecting…</div></div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="tbl">
+      <div class="pt">Live Overview</div>
+      <div class="ps" id="tsub">Initialising dashboard…</div>
+    </div>
+    <div class="tbr">
+      <span class="chip chip-muted" id="scc"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>0 sensors</span>
+      <span class="chip" id="wsc" style="background:var(--dgd);color:var(--dg);border-color:rgba(248,113,113,.3);"><span id="wsdot" style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;"></span>&nbsp;Disconnected</span>
+      <button class="btnr" onclick="fetchSensors()" aria-label="Refresh sensor list"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- KPI cards -->
+    <section aria-label="Live sensor readings">
+      <div class="kpis">
+        <div class="kc" id="kc-TEMPERATURE">
+          <div class="kh"><div class="ki t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><span class="kb kidle" id="kb-TEMPERATURE">IDLE</span></div>
+          <div class="kv" id="kv-TEMPERATURE">—<span class="ku">°C</span></div>
+          <div class="km">Temperature</div><div class="kid" id="kid-TEMPERATURE">no sensor</div>
+          <div class="ksp"><canvas id="ksp-TEMPERATURE" role="img" aria-label="Temperature sparkline">Temperature trend</canvas></div>
+        </div>
+        <div class="kc" id="kc-HUMIDITY">
+          <div class="kh"><div class="ki h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></div><span class="kb kidle" id="kb-HUMIDITY">IDLE</span></div>
+          <div class="kv" id="kv-HUMIDITY">—<span class="ku">%</span></div>
+          <div class="km">Humidity</div><div class="kid" id="kid-HUMIDITY">no sensor</div>
+          <div class="ksp"><canvas id="ksp-HUMIDITY" role="img" aria-label="Humidity sparkline">Humidity trend</canvas></div>
+        </div>
+        <div class="kc" id="kc-SOIL_MOISTURE">
+          <div class="kh"><div class="ki s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 22V12"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><path d="M8 6l4-4 4 4"/><path d="M2 9.5A14.5 14.5 0 0 1 12 6c3.18 0 6.17 1.03 8.5 2.75"/></svg></div><span class="kb kidle" id="kb-SOIL_MOISTURE">IDLE</span></div>
+          <div class="kv" id="kv-SOIL_MOISTURE">—<span class="ku">%</span></div>
+          <div class="km">Soil Moisture</div><div class="kid" id="kid-SOIL_MOISTURE">no sensor</div>
+          <div class="ksp"><canvas id="ksp-SOIL_MOISTURE" role="img" aria-label="Soil moisture sparkline">Soil moisture trend</canvas></div>
+        </div>
+        <div class="kc" id="kc-LIGHT">
+          <div class="kh"><div class="ki l"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div><span class="kb kidle" id="kb-LIGHT">IDLE</span></div>
+          <div class="kv" id="kv-LIGHT">—<span class="ku">%</span></div>
+          <div class="km">Light Level</div><div class="kid" id="kid-LIGHT">no sensor</div>
+          <div class="ksp"><canvas id="ksp-LIGHT" role="img" aria-label="Light sparkline">Light trend</canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chart + feed -->
+    <div class="gm">
+      <div class="panel">
+        <div class="ph">
+          <div><div class="ptt">Live readings</div><div class="pts">Last 30 data points per sensor</div></div>
+          <div class="tabs">
+            <button class="tb active" onclick="switchTab('all',this)">All</button>
+            <button class="tb" onclick="switchTab('TEMPERATURE',this)">Temp</button>
+            <button class="tb" onclick="switchTab('HUMIDITY',this)">Humidity</button>
+            <button class="tb" onclick="switchTab('SOIL_MOISTURE',this)">Soil</button>
+            <button class="tb" onclick="switchTab('LIGHT',this)">Light</button>
+          </div>
+        </div>
+        <div class="pb">
+          <div class="cw"><canvas id="mc" role="img" aria-label="Multi-line chart of live sensor readings over time">Live sensor readings</canvas></div>
+          <div class="sr">
+            <div class="si"><div class="sla">Messages</div><div class="sv" id="mcnt">0</div></div>
+            <div class="si"><div class="sla">Active sensors</div><div class="sv" id="acnt">0</div></div>
+            <div class="si"><div class="sla">Last reading</div><div class="sv" id="lrt">—</div></div>
+            <div class="si"><div class="sla">Reconnects</div><div class="sv" id="rcnt">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <div><div class="ptt">Event stream</div><div class="pts">Real-time readings</div></div>
+          <span class="chip chip-muted" id="fcnt">0 events</span>
+        </div>
+        <div class="fi" id="fl" role="log" aria-live="polite" aria-label="Live sensor event stream">
+          <div class="es">Waiting for data…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sensors table -->
+    <section class="ss2" aria-label="Registered sensors">
+      <div class="panel">
+        <div class="ph">
+          <div><div class="ptt">Registered sensors</div><div class="pts" id="stab-sub">Fetched from REST API — GET /sensors</div></div>
+        </div>
+        <div style="overflow:hidden;">
+          <table aria-label="Sensor registry">
+            <thead><tr><th>Sensor ID</th><th>Type</th><th>Location</th><th>Last Value</th><th>Status</th></tr></thead>
+            <tbody id="stb"><tr><td colspan="5" class="es" style="padding:20px;">No sensors registered yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Query + Alerts -->
+    <div class="br">
+      <div class="panel">
+        <div class="ph"><div><div class="ptt">Historical query</div><div class="pts">REST API — content negotiation via Accept header</div></div></div>
+        <div class="pb">
+          <div class="qf">
+            <div class="fg"><label for="qs">Sensor ID</label><select id="qs"><option value="">— select sensor —</option></select></div>
+            <div class="fr">
+              <div class="fg"><label for="qf">From (Unix ts)</label><input type="number" id="qf" placeholder="e.g. 1715000000"></div>
+              <div class="fg"><label for="qt">To (Unix ts)</label><input type="number" id="qt" placeholder="blank = now"></div>
+            </div>
+            <div class="fg"><label for="qfmt">Response format</label>
+              <select id="qfmt"><option value="application/json">JSON</option><option value="application/xml">XML</option><option value="application/yaml">YAML</option></select>
+            </div>
+            <button class="bq" onclick="runQuery()">Run query →</button>
+          </div>
+          <div class="qr" id="qr"><div class="es">Results will appear here</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><div><div class="ptt">System alerts</div><div class="pts">Auto-detected threshold breaches</div></div></div>
+        <div class="al" id="alist" role="log" aria-live="polite" aria-label="System alerts">
+          <div class="es" style="padding:20px;">No alerts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>GreenWatch Telemetry — Blantyre Agricultural Co-op &copy; 2026</div>
+    <div class="fr2">
+      <span>REST: <code style="font-family:var(--mono);font-size:11px;">http://127.0.0.1:8080</code></span>
+      <span>WS: <code style="font-family:var(--mono);font-size:11px;">ws://127.0.0.1:8000/live</code></span>
+    </div>
+  </footer>
+</main>
+</div>
+
+<div class="toast-wrap" id="tw" aria-live="assertive"></div>
+
+<script>
+const sensors={};const hist={};const typeMap={};let mainChart=null;const sparks={};
+const COLORS={TEMPERATURE:'#f87171',HUMIDITY:'#60a5fa',SOIL_MOISTURE:'#fbbf24',LIGHT:'#a78bfa'};
+const UNITS={TEMPERATURE:'°C',HUMIDITY:'%',SOIL_MOISTURE:'%',LIGHT:'%'};
+const TH={TEMPERATURE:{hi:35,lo:10},HUMIDITY:{hi:90,lo:20},SOIL_MOISTURE:{hi:80,lo:15},LIGHT:{hi:95,lo:5}};
+let msgCnt=0,reconCnt=0,feedCnt=0;const tab={t:'all'};
+
+function getSparkline(type){
+  if(sparks[type])return sparks[type];
+  const c=document.getElementById('ksp-'+type);
+  if(!c)return null;
+  const ch=new Chart(c.getContext('2d'),{type:'line',data:{labels:[],datasets:[{data:[],borderColor:COLORS[type],borderWidth:1.5,fill:true,backgroundColor:COLORS[type]+'20',pointRadius:0,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+  sparks[type]=ch;return ch;
+}
+
+function buildMain(){
+  const ctx=document.getElementById('mc').getContext('2d');
+  mainChart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:150},plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1c261c',titleColor:'#f0f5f0',bodyColor:'#7a9a7a',borderColor:'rgba(255,255,255,0.1)',borderWidth:1}},scales:{x:{ticks:{color:'#4a634a',font:{size:11},maxTicksLimit:8},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#4a634a',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+}
+
+function rebuildDatasets(){
+  if(!mainChart)return;
+  const datasets=[];
+  for(const[id,s]of Object.entries(sensors)){
+    if(tab.t!=='all'&&s.type!==tab.t)continue;
+    const h=hist[id]||[];
+    datasets.push({label:id,data:h.map(x=>x.v),borderColor:COLORS[s.type]||'#888',backgroundColor:(COLORS[s.type]||'#888')+'18',borderWidth:2,pointRadius:0,tension:0.35,fill:false});
+  }
+  let longest=[];
+  for(const[id]of Object.entries(sensors)){const h=hist[id]||[];if(h.length>longest.length)longest=h;}
+  mainChart.data.labels=longest.map(x=>new Date(x.ts*1000).toLocaleTimeString());
+  mainChart.data.datasets=datasets;
+  mainChart.update('none');
+}
+
+function updateKpi(type,id,val){
+  const vEl=document.getElementById('kv-'+type);
+  const iEl=document.getElementById('kid-'+type);
+  const bEl=document.getElementById('kb-'+type);
+  const cEl=document.getElementById('kc-'+type);
+  if(!vEl)return;
+  vEl.innerHTML=val.toFixed(1)+'<span class="ku">'+(UNITS[type]||'')+'</span>';
+  iEl.textContent=id;
+  bEl.textContent='LIVE';bEl.className='kb klive';
+  cEl.classList.add('flash');
+  setTimeout(()=>cEl.classList.remove('flash'),900);
+  const sp=getSparkline(type);
+  if(sp){const h=hist[id]||[];sp.data.labels=h.map((_,i)=>i);sp.data.datasets[0].data=h.map(x=>x.v);sp.update('none');}
+}
+
+async function fetchSensors(){
+  try{
+    const r=await fetch('/sensors',{headers:{'Accept':'application/json'}});
+    const data=await r.json();
+    const tb=document.getElementById('stb');
+    if(!data.length){tb.innerHTML='<tr><td colspan="5" class="es" style="padding:20px;">No sensors registered</td></tr>';return;}
+    const tcls={TEMPERATURE:'tT',HUMIDITY:'tH',SOIL_MOISTURE:'tS',LIGHT:'tL'};
+    tb.innerHTML=data.map(s=>{
+      const last=sensors[s.id];
+      const v=last?last.value.toFixed(1)+(UNITS[s.type]||''):'—';
+      const live=!!last;
+      return`<tr><td class="tid">${s.id}</td><td><span class="tty ${tcls[s.type]||''}">${s.type}</span></td><td style="color:var(--ts)">${s.location||'—'}</td><td style="font-variant-numeric:tabular-nums;font-weight:500;">${v}</td><td><span class="sp ${live?'slv':'sil'}"><span class="sd"></span>${live?'Live':'Idle'}</span></td></tr>`;
+    }).join('');
+    document.getElementById('stab-sub').textContent=data.length+' sensor'+(data.length!==1?'s':'')+' — GET /sensors';
+    document.getElementById('scc').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> '+data.length+' sensor'+(data.length!==1?'s':'');
+    const sel=document.getElementById('qs');
+    sel.innerHTML='<option value="">— select sensor —</option>';
+    data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.id;sel.appendChild(o);});
+  }catch(e){console.warn('fetch sensors failed',e);}
+}
+
+function addFeed(reading){
+  const list=document.getElementById('fl');
+  const empty=list.querySelector('.es');if(empty)empty.remove();
+  const item=document.createElement('div');item.className='fitem nw';
+  const dt=new Date(reading.ts*1000);
+  const tc=reading.type.toLowerCase().replace('_moisture','');
+  const dotCls=tc==='temperature'?'t':tc==='humidity'?'humidity':tc==='soil'?'soil':'l';
+  item.innerHTML=`<div><div class="fd ${dotCls}"></div></div><div><div class="fn">${reading.sensor_id}</div><div class="fty">${reading.type}</div></div><div><div class="fv" style="color:${COLORS[reading.type]||'#fff'}">${reading.value.toFixed(2)}${UNITS[reading.type]||''}</div><div class="ft">${dt.toLocaleTimeString()}</div></div>`;
+  list.prepend(item);
+  setTimeout(()=>item.classList.remove('nw'),800);
+  while(list.children.length>50)list.removeChild(list.lastChild);
+  feedCnt++;document.getElementById('fcnt').textContent=feedCnt+' events';
+}
+
+function checkAlert(reading){
+  const th=TH[reading.type];if(!th)return;
+  const v=reading.value;let msg=null,cls='';
+  if(v>th.hi){msg=`${reading.sensor_id}: ${reading.type} HIGH (${v.toFixed(1)}${UNITS[reading.type]||''})`;cls='ahigh';}
+  else if(v<th.lo){msg=`${reading.sensor_id}: ${reading.type} LOW (${v.toFixed(1)}${UNITS[reading.type]||''})`;cls='awarn';}
+  if(!msg)return;
+  const list=document.getElementById('alist');
+  const empty=list.querySelector('.es');if(empty)empty.remove();
+  const item=document.createElement('div');item.className='ait '+cls;
+  item.innerHTML=`<div class="aico">${cls==='ahigh'?'▲':'▼'}</div><div><div class="amsg">${msg}</div><div class="atm">${new Date().toLocaleTimeString()}</div></div>`;
+  list.prepend(item);
+  while(list.children.length>20)list.removeChild(list.lastChild);
+}
+
+async function runQuery(){
+  const id=document.getElementById('qs').value;
+  if(!id){showToast('Select a sensor first','err');return;}
+  const from=document.getElementById('qf').value;
+  const to=document.getElementById('qt').value;
+  const fmt=document.getElementById('qfmt').value;
+  let url='/sensors/'+encodeURIComponent(id)+'/readings';
+  const p=[];if(from)p.push('from='+from);if(to)p.push('to='+to);if(p.length)url+='?'+p.join('&');
+  try{
+    const r=await fetch(url,{headers:{'Accept':fmt}});
+    const txt=await r.text();
+    const c=document.getElementById('qr');
+    if(r.ok){c.innerHTML=`<pre style="font-family:var(--mono);font-size:11px;color:var(--ts);overflow:auto;max-height:160px;padding:8px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--border);">${esc(txt.slice(0,900))}${txt.length>900?'\n…':''}</pre>`;showToast('HTTP '+r.status,'ok');}
+    else{c.innerHTML=`<div style="color:var(--dg);font-size:13px;padding:8px;">${r.status}: ${esc(txt)}</div>`;}
+  }catch(e){document.getElementById('qr').innerHTML=`<div style="color:var(--dg);font-size:13px;padding:8px;">Error: ${e.message}</div>`;}
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function switchTab(type,btn){
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');tab.t=type;rebuildDatasets();
+}
+
+function setWsStatus(ok){
+  const chip=document.getElementById('wsc');const dot=document.getElementById('sdot');const st=document.getElementById('sstatus');
+  if(ok){
+    chip.style.cssText='background:var(--acd);color:var(--ac);border-color:var(--border-a);';
+    chip.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;animation:pdot 2s infinite;"></span>&nbsp;Live';
+    dot.classList.add('live');st.textContent='Connected';
+    document.getElementById('tsub').textContent='Receiving live telemetry — ws://127.0.0.1:8000/live';
+  }else{
+    chip.style.cssText='background:var(--dgd);color:var(--dg);border-color:rgba(248,113,113,.3);';
+    chip.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;"></span>&nbsp;Disconnected';
+    dot.classList.remove('live');st.textContent='Disconnected';
+    document.getElementById('tsub').textContent='WebSocket disconnected — reconnecting…';
+  }
+}
+
+function handleReading(reading){
+  const{sensor_id:id,type,value,ts}=reading;
+  msgCnt++;document.getElementById('mcnt').textContent=msgCnt;
+  document.getElementById('lrt').textContent=new Date().toLocaleTimeString();
+  if(!sensors[id])sensors[id]={type,value:null,ts:null};
+  sensors[id].value=value;sensors[id].ts=ts;sensors[id].type=type;
+  if(!hist[id])hist[id]=[];
+  hist[id].push({v:value,ts});
+  if(hist[id].length>30)hist[id].shift();
+  if(!typeMap[type])typeMap[type]=id;
+  updateKpi(type,id,value);
+  addFeed(reading);
+  checkAlert(reading);
+  rebuildDatasets();
+  document.getElementById('acnt').textContent=Object.keys(sensors).length;
+}
+
+let ws=null;
+function connectWS(){
+  ws=new WebSocket('ws://127.0.0.1:8000/live');
+  ws.onopen=()=>{setWsStatus(true);ws.send(JSON.stringify({action:'subscribe',sensors:[]}));};
+  ws.onmessage=e=>{try{handleReading(JSON.parse(e.data));}catch(err){console.warn('parse',err);}};
+  ws.onerror=()=>setWsStatus(false);
+  ws.onclose=()=>{setWsStatus(false);reconCnt++;document.getElementById('rcnt').textContent=reconCnt;setTimeout(connectWS,3000);};
+}
+
+function showToast(msg,t='ok'){
+  const el=document.createElement('div');
+  el.className='toast '+(t==='ok'?'tok':'terr');
+  el.textContent=msg;
+  document.getElementById('tw').appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+
+buildMain();
+connectWS();
+fetchSensors();
+setInterval(fetchSensors,30000);
+</script>
+</body>
+</html>

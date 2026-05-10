@@ -1,0 +1,39 @@
+// telemetry.proto
+//
+// Wire format used between sensors and the telemetry server.
+// Compile with: protoc --python_out=. proto/telemetry.proto
+//
+// TODO: Define the Reading and SensorRegistration messages.
+//   At minimum, a Reading needs:
+//     - sensor identifier
+//     - reading type (e.g. temperature, humidity, soil_moisture, light)
+//     - numeric value
+//     - timestamp (Unix epoch seconds, or a google.protobuf.Timestamp)
+//
+//   Add any other messages your design requires.
+
+syntax = "proto3";
+
+package telemetry;
+
+// Enumerates sensor measurement types.
+enum SensorType {
+  UNKNOWN = 0;
+  TEMPERATURE = 1; // degrees Celsius
+  HUMIDITY = 2; // percentage 0-100
+  SOIL_MOISTURE = 3; // percentage 0-100
+  LIGHT = 4; // lux
+}
+
+message Reading {
+  string sensor_id = 1;
+  SensorType sensor_type = 2;
+  float value = 3;
+  int64 timestamp = 4;     // Unix epoch seconds
+}
+
+message SensorRegistration {
+  string sensor_id = 1;
+  SensorType sensor_type = 2;
+  string location = 3;     // e.g. "Greenhouse A, Row 3"
+}
