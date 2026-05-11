@@ -34,6 +34,8 @@ REST Clients (HTTP)    →  REST API (8080)
 # 1. Install dependencies
 pip install -r requirements.txt
 
+pip install --upgrade protobuf
+
 # 2. Compile Protobuf schema to Python stubs
 cd Source
 protoc --python_out=. proto/telemetry.proto
@@ -147,9 +149,14 @@ curl -H "Accept: application/xml" http://localhost:8080/sensors
 
 ### Query Historical Readings
 ```bash
-# Last 24 hours of temperature readings
-# (replace with actual Unix timestamps)
+# All readings (up to 10,000 by default)
+curl "http://localhost:8080/sensors/greenhouse-a-temp/readings"
+
+# Last 24 hours of readings
 curl "http://localhost:8080/sensors/greenhouse-a-temp/readings?from=1620000000&to=1620086400"
+
+# Get only 100 most recent readings
+curl "http://localhost:8080/sensors/greenhouse-a-temp/readings?limit=100"
 
 # XML format
 curl -H "Accept: application/xml" \
@@ -160,11 +167,16 @@ curl -H "Accept: application/yaml" \
   "http://localhost:8080/sensors/greenhouse-a-temp/readings?from=1620000000&to=1620086400"
 ```
 
+**Query parameters:**
+- `from`: Unix timestamp (inclusive start time)
+- `to`: Unix timestamp (inclusive end time)
+- `limit`: Max readings to return (default: 10000, max recommended: 50000)
+
 **Response (JSON):**
 ```json
 [
-  {"sensor_id": "greenhouse-a-temp", "type": "TEMPERATURE", "value": 20.5, "timestamp": 1620000100},
-  {"sensor_id": "greenhouse-a-temp", "type": "TEMPERATURE", "value": 20.3, "timestamp": 1620000105},
+  {"sensor_id": "greenhouse-a-temp", "type": "TEMPERATURE", "value": 20.5, "timestamp": "2021-05-03T10:01:40Z"},
+  {"sensor_id": "greenhouse-a-temp", "type": "TEMPERATURE", "value": 20.3, "timestamp": "2021-05-03T10:01:45Z"},
   ...
 ]
 ```
@@ -337,6 +349,24 @@ Edit `server/__main__.py` and `wss/__main__.py` to change:
 - `readings`: measurements (sensor_id, value, timestamp, type)
 - Index: (sensor_id, timestamp) for fast time-range queries
 
+**Data Retention:**
+- **All readings are stored permanently** — no automatic cleanup
+- Database grows continuously as sensors produce data
+- ~1KB per reading (varies by sensor ID/type length)
+- Example: 4 sensors at 1 reading/sec = ~345 MB per day
+
+**Checking stored data:**
+```bash
+# Count total readings
+sqlite3 telemetry.db "SELECT COUNT(*) FROM readings;"
+
+# Count readings per sensor
+sqlite3 telemetry.db "SELECT sensor_id, COUNT(*) FROM readings GROUP BY sensor_id;"
+
+# Check database file size
+ls -lh telemetry.db
+```
+
 To reset: `rm telemetry.db` (it'll be recreated on next server start)
 
 ## Design Notes
@@ -407,6 +437,29 @@ If sensors are registered but dashboard shows no readings:
 2. Ensure the main server (`python -m server`) is running
 3. Open browser console (F12) and check for JavaScript errors
 4. Verify that sensors are actively publishing (check `python -m client` logs)
+
+### Only seeing recent data on dashboard
+The **dashboard live chart only shows the last 30 readings** per sensor (for performance). This is normal and doesn't mean older data is lost.
+
+To verify all data is stored:
+```bash
+# Query the REST API for all readings
+curl "http://localhost:8080/sensors/greenhouse-a-temp/readings?limit=100"
+
+# Count total stored readings
+sqlite3 telemetry.db "SELECT COUNT(*) FROM readings WHERE sensor_id='greenhouse-a-temp';"
+```
+
+### Database grows too large
+If `telemetry.db` becomes too large, implement a cleanup policy:
+
+```bash
+# Delete readings older than 30 days
+sqlite3 telemetry.db "DELETE FROM readings WHERE timestamp < strftime('%s', 'now') - 2592000;"
+
+# Vacuum to reclaim space
+sqlite3 telemetry.db "VACUUM;"
+```
 
 ## Authors
 

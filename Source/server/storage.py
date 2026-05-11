@@ -134,8 +134,16 @@ class Storage:
         sensor_id: str,
         from_ts: Optional[int] = None,
         to_ts: Optional[int] = None,
+        limit: int = 10000,
     ) -> list[Reading]:
-        """Return readings for a sensor within an optional time window (Unix timestamps)."""
+        """Return readings for a sensor within an optional time window (Unix timestamps).
+        
+        Args:
+            sensor_id: Sensor ID to query
+            from_ts: Start timestamp (inclusive), or None for unbounded
+            to_ts: End timestamp (inclusive), or None for unbounded
+            limit: Maximum number of readings to return (default: 10000)
+        """
         def _query():
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
@@ -150,14 +158,16 @@ class Storage:
                 query += " AND timestamp <= ?"
                 params.append(to_ts)
             
-            query += " ORDER BY timestamp"
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
             
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
             conn.close()
+            # Reverse to get chronological order (oldest first)
             return [
                 Reading(row['sensor_id'], row['sensor_type'], row['value'], row['timestamp'])
-                for row in rows
+                for row in reversed(rows)
             ]
         
         return await asyncio.get_event_loop().run_in_executor(self.executor, _query)

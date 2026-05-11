@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import uuid
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from aiohttp import web
@@ -70,12 +71,19 @@ async def list_sensors(request: web.Request) -> web.Response:
 
 
 async def get_readings(request: web.Request) -> web.Response:
-    """GET /sensors/{id}/readings — historical readings for a sensor."""
+    """GET /sensors/{id}/readings — historical readings for a sensor.
+    
+    Query parameters:
+      - from: Unix timestamp (inclusive)
+      - to: Unix timestamp (inclusive)
+      - limit: Max number of readings to return (default: 10000)
+    """
     sensor_id = request.match_info["id"]
     
     # Parse query parameters: from and to (Unix timestamps)
     from_ts = None
     to_ts = None
+    limit = 10000  # Default limit to prevent memory overload
     
     if "from" in request.rel_url.query:
         try:
@@ -95,8 +103,19 @@ async def get_readings(request: web.Request) -> web.Response:
                 status=400
             )
     
+    if "limit" in request.rel_url.query:
+        try:
+            limit = int(request.rel_url.query["limit"])
+            if limit <= 0:
+                raise ValueError("limit must be > 0")
+        except ValueError:
+            return web.Response(
+                text='Query param "limit" must be a positive integer',
+                status=400
+            )
+    
     # Query storage
-    readings = await _storage.get_readings(sensor_id, from_ts, to_ts)
+    readings = await _storage.get_readings(sensor_id, from_ts, to_ts, limit)
     
     if not readings:
         return web.Response(
@@ -104,9 +123,14 @@ async def get_readings(request: web.Request) -> web.Response:
             status=404
         )
     
-    # Convert to dicts
+    # Convert to dicts with ISO 8601 formatted timestamps
     payload = [
-        {"sensor_id": r.sensor_id, "type": r.sensor_type, "value": r.value, "timestamp": r.timestamp}
+        {
+            "sensor_id": r.sensor_id, 
+            "type": r.sensor_type, 
+            "value": r.value, 
+            "timestamp": datetime.utcfromtimestamp(r.timestamp).isoformat() + "Z"
+        }
         for r in readings
     ]
     
